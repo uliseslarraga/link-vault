@@ -3,14 +3,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from typing import List
 from uuid import UUID
+import logging
 import uuid
 
-from db.session import get_db
+from db.session import get_db, AsyncSessionLocal
 from models.link import Link
 from models.schemas import LinkCreate, LinkUpdate, LinkResponse
-from services.s3 import get_presigned_url, delete_screenshot
+from services.s3 import get_presigned_url, delete_screenshot, upload_screenshot
+from services.screenshot import capture_screenshot
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _capture_and_save_screenshot(link_id: UUID, url: str) -> None:
+    """Background task: screenshot → S3 → update DB row."""
+    key = f"screenshots/{link_id}.png"
+    try:
+        png_bytes = await capture_screenshot(url)
+        upload_screenshot(key, png_bytes)
+    except Exception:
+        logger.exception("Screenshot capture failed for link %s", link_id)
+        return
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Link).where(Link.id == link_id))
+        link = result.scalar_one_or_none()
+        if link:
+            link.screenshot_key = key
+            await db.commit()
 
 
 def _enrich_with_presigned(link: Link) -> LinkResponse:
@@ -31,6 +53,7 @@ async def list_links(db: AsyncSession = Depends(get_db)):
 @router.post("/", response_model=LinkResponse, status_code=status.HTTP_201_CREATED)
 async def create_link(
     payload: LinkCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     link = Link(
@@ -42,6 +65,9 @@ async def create_link(
     db.add(link)
     await db.commit()
     await db.refresh(link)
+
+    background_tasks.add_task(_capture_and_save_screenshot, link.id, link.url)
+
     return _enrich_with_presigned(link)
 
 
