@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from typing import List
 from uuid import UUID
+import asyncio
 import logging
 import uuid
 
@@ -20,11 +21,18 @@ router = APIRouter()
 async def _capture_and_save_screenshot(link_id: UUID, url: str) -> None:
     """Background task: screenshot → S3 → update DB row."""
     key = f"screenshots/{link_id}.png"
+
     try:
         png_bytes = await capture_screenshot(url)
-        upload_screenshot(key, png_bytes)
     except Exception:
-        logger.exception("Screenshot capture failed for link %s", link_id)
+        logger.exception("Screenshot capture failed for link %s url=%s", link_id, url)
+        return
+
+    try:
+        # upload_screenshot is sync/blocking — run it in a thread to avoid blocking the event loop
+        await asyncio.to_thread(upload_screenshot, key, png_bytes)
+    except Exception:
+        logger.exception("Screenshot S3 upload failed for link %s key=%s", link_id, key)
         return
 
     async with AsyncSessionLocal() as db:
@@ -33,6 +41,7 @@ async def _capture_and_save_screenshot(link_id: UUID, url: str) -> None:
         if link:
             link.screenshot_key = key
             await db.commit()
+            logger.info("Screenshot saved for link %s key=%s", link_id, key)
 
 
 def _enrich_with_presigned(link: Link) -> LinkResponse:
