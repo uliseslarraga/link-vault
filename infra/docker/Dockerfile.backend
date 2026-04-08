@@ -1,0 +1,35 @@
+# ── Stage 1: dependency builder ──────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Install build deps for asyncpg (C extension)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --prefix=/install --no-cache-dir -r requirements.txt
+
+
+# ── Stage 2: runtime ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+# Don't run as root
+RUN addgroup --system app && adduser --system --ingroup app app
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /install /usr/local
+
+# Copy app source
+COPY --chown=app:app . .
+
+USER app
+
+EXPOSE 8000
+
+# Use exec form so PID 1 gets signals correctly
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
