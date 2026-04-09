@@ -16,6 +16,11 @@ RUN pip install --upgrade pip \
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
+# Tell Playwright (both install-time and runtime) where to find browsers.
+# Without this it defaults to $HOME/.cache/ms-playwright, which for the
+# non-root system user resolves to /nonexistent/.cache and is never found.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 # Don't run as root
 RUN addgroup --system app && adduser --system --ingroup app app
 
@@ -24,8 +29,9 @@ WORKDIR /app
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
-# Install Chromium + all required OS dependencies via Playwright
-RUN playwright install --with-deps chromium
+# Install Chromium + OS deps into the fixed path, then grant app user access
+RUN playwright install --with-deps chromium \
+    && chmod -R o+rX /ms-playwright
 
 # Copy app source
 COPY --chown=app:app . .
