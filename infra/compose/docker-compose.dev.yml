@@ -49,6 +49,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-linkvault}
       S3_BUCKET: ${S3_BUCKET:-link-vault}
       S3_ENDPOINT_URL: http://localstack:4566
+      S3_PRESIGN_ENDPOINT_URL: http://localhost:4566
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_REGION: us-east-1
