@@ -9,4 +9,13 @@ export default defineConfig({
       "/api": { target: "http://localhost:8000", changeOrigin: true },
     },
   },
+  test: {
+    environment: "jsdom",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      // TODO: add thresholds once meaningful tests exist, e.g.:
+      // thresholds: { lines: 60, branches: 60 },
+    },
+  },
 });
