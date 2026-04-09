@@ -29,8 +29,13 @@ WORKDIR /app
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
-# Install Chromium + OS deps into the fixed path, then grant app user access
-RUN playwright install --with-deps chromium \
+# Install Chromium OS dependencies explicitly, then download the browser binary
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+    libgbm1 libpango-1.0-0 libcairo2 libasound2 fonts-liberation \
+    && rm -rf /var/lib/apt/lists/* \
+    && playwright install chromium \
     && chmod -R o+rX /ms-playwright
 
 # Copy app source
