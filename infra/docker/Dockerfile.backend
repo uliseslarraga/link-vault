@@ -14,9 +14,12 @@ RUN pip install --upgrade pip \
 
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
-# Use the official Playwright image — Chromium + all OS deps are pre-installed
-# and kept patched by Microsoft, avoiding the CVE surface of a manual install.
-FROM mcr.microsoft.com/playwright/python:v1.49.0-noble AS runtime
+FROM python:3.12-slim AS runtime
+
+# Tell Playwright (both install-time and runtime) where to find browsers.
+# Without this it defaults to $HOME/.cache/ms-playwright, which for the
+# non-root system user resolves to /nonexistent/.cache and is never found.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Don't run as root
 RUN addgroup --system app && adduser --system --ingroup app app
@@ -25,6 +28,15 @@ WORKDIR /app
 
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
+
+# Install Chromium OS dependencies explicitly, then download the browser binary
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+    libgbm1 libpango-1.0-0 libcairo2 libasound2 fonts-liberation \
+    && rm -rf /var/lib/apt/lists/* \
+    && playwright install chromium \
+    && chmod -R o+rX /ms-playwright
 
 # Copy app source
 COPY --chown=app:app . .
