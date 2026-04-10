@@ -121,3 +121,15 @@ jobs:
       with:
         sarif_file: trivy.sarif
         category: trivy-backend
+
+  # ── Deploy (placeholder) ─────────────────────────────────────────────────────
+  update-image:
+    name: Update Image in helm values file
+    needs: container
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - name: Update Helm values (placeholder)
+      run: |
+        echo "Image: ${{ env.IMAGE }}:sha-${{ github.sha }}"
+        echo "TODO: push updated Helm values and trigger ArgoCD sync"
