@@ -56,7 +56,7 @@ def _enrich_with_presigned(link: Link) -> LinkResponse:
 async def list_links(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Link).order_by(Link.created_at.desc()))
     links = result.scalars().all()
-    return [_enrich_with_presigned(l) for l in links]
+    return [_enrich_with_presigned(link) for link in links]
 
 
 @router.post("/", response_model=LinkResponse, status_code=status.HTTP_201_CREATED)

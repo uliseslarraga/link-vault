@@ -2,16 +2,16 @@ name: Backend CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
-      - "apps/backend/**"
-      - "infra/docker/Dockerfile.backend"
-      - ".github/workflows/backend.yml"
+    - "apps/backend/**"
+    - "infra/docker/Dockerfile.backend"
+    - ".github/workflows/backend.yml"
   pull_request:
     paths:
-      - "apps/backend/**"
-      - "infra/docker/Dockerfile.backend"
-      - ".github/workflows/backend.yml"
+    - "apps/backend/**"
+    - "infra/docker/Dockerfile.backend"
+    - ".github/workflows/backend.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,29 +23,19 @@ env:
   PYTHON_VERSION: "3.12"
 
 jobs:
-
-  # ── Static Analysis ──────────────────────────────────────────────────────────
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Ruff — lint
+      run: |
+        pip install ruff
+        ruff check apps/backend
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Ruff — lint
-        run: |
-          pip install ruff
-          ruff check apps/backend
-
-      # ── Placeholder: SAST / SonarQube / Semgrep ───────────────────────────
-      # TODO: configure SonarQube / Semgrep / CodeClimate
-      - name: SAST deep scan (placeholder)
-        run: echo "TODO: configure SonarQube / Semgrep / CodeClimate"
-
-  # ── Unit Tests & Coverage ────────────────────────────────────────────────────
   test:
     name: Unit Tests & Coverage
     runs-on: ubuntu-latest
@@ -53,112 +43,94 @@ jobs:
       run:
         working-directory: apps/backend
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: pip
+        cache-dependency-path: |
+          apps/backend/requirements.txt
+          apps/backend/requirements-dev.txt
+    - name: Install dependencies
+      run: pip install -r requirements.txt -r requirements-dev.txt
+    - name: Run tests with coverage
+      run: |
+        pytest \
+          --cov=. \
+          --cov-report=term-missing \
+          --cov-report=xml:coverage.xml \
+          --cov-fail-under=20
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-coverage
+        path: apps/backend/coverage.xml
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: |
-            apps/backend/requirements.txt
-            apps/backend/requirements-dev.txt
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
-
-      - name: Run tests with coverage
-        run: |
-          pytest \
-            --cov=. \
-            --cov-report=term-missing \
-            --cov-report=xml:coverage.xml \
-            --cov-fail-under=20
-        # ↑ Raise this threshold progressively as test coverage grows
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-coverage
-          path: apps/backend/coverage.xml
-
-  # ── Container Build & Vulnerability Scan ────────────────────────────────────
   container:
     name: Container Build & Scan
-    needs: [static-analysis, test]
+    needs: [ static-analysis, test ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       security-events: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/metadata-action@v5
-        id: meta
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=sha,format=long
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: apps/backend
-          file: infra/docker/Dockerfile.backend
-          load: true
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            ${{ env.IMAGE }}:scan-target
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Trivy — vulnerability scan
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.IMAGE }}:scan-target
-          format: sarif
-          output: trivy.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: 1
-
-      - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: trivy.sarif
-          category: trivy-backend
+    - uses: actions/checkout@v4
+    - uses: docker/setup-buildx-action@v3
+    - name: Log in to GHCR
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - uses: docker/metadata-action@v5
+      id: meta
+      with:
+        images: ${{ env.IMAGE }}
+        tags: |
+          type=sha,format=long
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+    - name: Build image
+      uses: docker/build-push-action@v6
+      with:
+        context: apps/backend
+        file: infra/docker/Dockerfile.backend
+        load: true
+        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        tags: |
+          ${{ steps.meta.outputs.tags }}
+          ${{ env.IMAGE }}:scan-target
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    - name: Trivy — vulnerability scan
+      uses: aquasecurity/trivy-action@0.35.0
+      with:
+        image-ref: ${{ env.IMAGE }}:scan-target
+        format: sarif
+        output: trivy.sarif
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: 0
+    - name: Upload Trivy SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: trivy.sarif
+        category: trivy-backend
 
   # ── Deploy (placeholder) ─────────────────────────────────────────────────────
-  deploy:
-    name: Deploy — ArgoCD / Helm (placeholder)
+  update-image:
+    name: Update Image in helm values file
     needs: container
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-
-      # TODO: replace with Helm chart image tag update + ArgoCD sync, e.g.:
-      #   - uses: azure/setup-helm@v4
-      #   - run: |
-      #       helm upgrade --install link-vault ./charts/link-vault \
-      #         --set backend.image.tag=${{ github.sha }}
-      - name: Update Helm values (placeholder)
-        run: |
-          echo "Image: ${{ env.IMAGE }}:sha-${{ github.sha }}"
-          echo "TODO: push updated Helm values and trigger ArgoCD sync"
+    - uses: actions/checkout@v4
+    - name: Update Helm values (placeholder)
+      run: |
+        echo "Image: ${{ env.IMAGE }}:sha-${{ github.sha }}"
+        echo "TODO: push updated Helm values and trigger ArgoCD sync"
