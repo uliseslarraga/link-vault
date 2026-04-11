@@ -1,5 +1,4 @@
-# ── Compute — dev ─────────────────────────────────────────────────────────────
-# Reads network outputs from remote state to reference VPC and subnet IDs.
+# ── Remote state — network layer ──────────────────────────────────────────────
 
 data "terraform_remote_state" "network" {
   backend = "s3"
@@ -10,8 +9,62 @@ data "terraform_remote_state" "network" {
   }
 }
 
-# TODO: add compute resources (ECS cluster, EC2, EKS, etc.)
-# Available references:
-#   data.terraform_remote_state.network.outputs.vpc_id
-#   data.terraform_remote_state.network.outputs.private_subnet_ids
-#   data.terraform_remote_state.network.outputs.public_subnet_ids
+# ── IAM Roles ─────────────────────────────────────────────────────────────────
+
+module "iam_eks" {
+  source = "../../../modules/iam-eks"
+
+  env          = "dev"
+  cluster_name = var.cluster_name
+}
+
+# ── EKS Cluster ───────────────────────────────────────────────────────────────
+
+module "eks" {
+  source = "../../../modules/eks"
+
+  env                = "dev"
+  cluster_name       = var.cluster_name
+  kubernetes_version = "1.32"
+  cluster_role_arn   = module.iam_eks.cluster_role_arn
+
+  # Place control plane ENIs in private subnets
+  subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
+
+  endpoint_private_access = true
+  endpoint_public_access  = false
+}
+
+# ── System Node Group ─────────────────────────────────────────────────────────
+# Dedicated to cluster-level tooling: Cluster Autoscaler, ArgoCD,
+# Prometheus, Grafana, etc.
+# Taint: dedicated=system:NoSchedule — only pods with the matching
+# toleration are scheduled here.
+
+module "system_nodes" {
+  source = "../../../modules/eks-nodegroup"
+
+  env             = "dev"
+  cluster_name    = module.eks.cluster_name
+  node_group_name = "system"
+  node_role_arn   = module.iam_eks.node_role_arn
+  subnet_ids      = data.terraform_remote_state.network.outputs.private_subnet_ids
+
+  instance_types = ["t3.large"]
+  capacity_type  = "ON_DEMAND"
+  disk_size_gb   = 50
+
+  min_size     = 1
+  desired_size = 2
+  max_size     = 5
+
+  labels = {
+    role = "system"
+  }
+
+  taints = [{
+    key    = "dedicated"
+    value  = "system"
+    effect = "NO_SCHEDULE"
+  }]
+}
