@@ -31,6 +31,12 @@ variable "flow_log_retention_days" {
   default     = 90
 }
 
+variable "eks_enabled" {
+  description = "When true, adds the kubernetes.io/role/elb and kubernetes.io/role/internal-elb tags required by the AWS Load Balancer Controller to discover subnets"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Additional tags to merge onto all resources"
   type        = map(string)

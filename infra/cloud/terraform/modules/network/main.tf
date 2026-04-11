@@ -109,10 +109,14 @@ resource "aws_subnet" "public" {
   availability_zone       = local.azs[count.index]
   map_public_ip_on_launch = var.map_public_ip_on_launch
 
-  tags = merge(local.common_tags, {
-    Name = "link-vault-${var.env}-public-${local.azs[count.index]}"
-    Tier = "public"
-  })
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "link-vault-${var.env}-public-${local.azs[count.index]}"
+      Tier = "public"
+    },
+    var.eks_enabled ? { "kubernetes.io/role/elb" = "1" } : {},
+  )
 }
 
 resource "aws_subnet" "private" {
@@ -122,10 +126,14 @@ resource "aws_subnet" "private" {
   cidr_block        = cidrsubnet(var.vpc_cidr, 4, count.index + var.subnets_per_region)
   availability_zone = local.azs[count.index]
 
-  tags = merge(local.common_tags, {
-    Name = "link-vault-${var.env}-private-${local.azs[count.index]}"
-    Tier = "private"
-  })
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "link-vault-${var.env}-private-${local.azs[count.index]}"
+      Tier = "private"
+    },
+    var.eks_enabled ? { "kubernetes.io/role/internal-elb" = "1" } : {},
+  )
 }
 
 resource "aws_subnet" "data" {
