@@ -33,9 +33,14 @@ output "availability_zones" {
   value       = local.azs
 }
 
-output "vpc_endpoint_ssm_ids" {
-  description = "Map of SSM VPC endpoint IDs keyed by service name"
-  value       = { for k, v in aws_vpc_endpoint.ssm : k => v.id }
+output "vpc_endpoint_s3_id" {
+  description = "ID of the S3 Gateway VPC endpoint"
+  value       = aws_vpc_endpoint.s3.id
+}
+
+output "vpc_endpoint_interface_ids" {
+  description = "Map of Interface VPC endpoint IDs keyed by service name"
+  value       = { for k, v in aws_vpc_endpoint.interface : k => v.id }
 }
 
 output "flow_log_id" {

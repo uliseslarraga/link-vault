@@ -220,14 +220,47 @@ resource "aws_security_group" "vpc_endpoints" {
   tags = merge(local.common_tags, { Name = "link-vault-${var.env}-sg-vpc-endpoints" })
 }
 
-# ── VPC Interface Endpoints — SSM ─────────────────────────────────────────────
+# ── VPC Gateway Endpoint — S3 ─────────────────────────────────────────────────
+# Free endpoint — keeps S3 traffic (ECR layers, app uploads) on the AWS backbone.
+# Associated with all three route tables so every tier can reach S3.
 
-locals {
-  ssm_endpoint_services = ["ssm", "ssmmessages", "ec2messages"]
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = [
+    aws_route_table.public.id,
+    aws_route_table.private.id,
+    aws_route_table.data.id,
+  ]
+
+  tags = merge(local.common_tags, { Name = "link-vault-${var.env}-vpce-s3" })
 }
 
-resource "aws_vpc_endpoint" "ssm" {
-  for_each = toset(local.ssm_endpoint_services)
+# ── VPC Interface Endpoints ───────────────────────────────────────────────────
+# SSM Session Manager:  ssm, ssmmessages, ec2messages
+# EKS / node bootstrap: ec2, ecr.api, ecr.dkr, sts
+# Controllers:          elasticloadbalancing, autoscaling
+# Observability:        logs
+
+locals {
+  interface_endpoint_services = [
+    "ssm",
+    "ssmmessages",
+    "ec2messages",
+    "ec2",
+    "ecr.api",
+    "ecr.dkr",
+    "sts",
+    "elasticloadbalancing",
+    "autoscaling",
+    "logs",
+  ]
+}
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each = toset(local.interface_endpoint_services)
 
   vpc_id              = aws_vpc.this.id
   service_name        = "com.amazonaws.${var.region}.${each.key}"
