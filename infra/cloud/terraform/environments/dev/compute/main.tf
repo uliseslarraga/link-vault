@@ -25,7 +25,7 @@ module "eks" {
 
   env                = "dev"
   cluster_name       = var.cluster_name
-  kubernetes_version = "1.32"
+  kubernetes_version = "1.35"
   cluster_role_arn   = module.iam_eks.cluster_role_arn
 
   # Place control plane ENIs in private subnets
