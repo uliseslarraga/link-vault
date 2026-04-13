@@ -35,7 +35,7 @@ jobs:
         pip install ruff
         ruff check apps/backend
     - name: SAST deep scan (placeholder)
-      run: echo "TODO: configure SonarQube / Semgrep / CodeClimate"
+      run: echo "TODO:\ configure SonarQube / Semgrep / CodeClimate"
 
   test:
     name: Unit Tests & Coverage
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write       # required for OIDC → AWS role assumption
+      id-token: write # required for OIDC → AWS role assumption
       security-events: write
     steps:
     - uses: actions/checkout@v4
