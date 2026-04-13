@@ -9,16 +9,8 @@ data "terraform_remote_state" "network" {
   }
 }
 
-# ── IAM Roles ─────────────────────────────────────────────────────────────────
-
-module "iam_eks" {
-  source = "../../../modules/iam-eks"
-
-  env          = "dev"
-  cluster_name = var.cluster_name
-}
-
 # ── EKS Cluster ───────────────────────────────────────────────────────────────
+# Created before iam_eks — OIDC outputs are needed for IRSA role trust policies.
 
 module "eks" {
   source = "../../../modules/eks"
@@ -28,11 +20,22 @@ module "eks" {
   kubernetes_version = "1.35"
   cluster_role_arn   = module.iam_eks.cluster_role_arn
 
-  # Place control plane ENIs in private subnets
   subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
 
   endpoint_private_access = true
   endpoint_public_access  = true
+}
+
+# ── IAM Roles ─────────────────────────────────────────────────────────────────
+# Depends on module.eks for OIDC values used to build the EBS CSI IRSA role.
+
+module "iam_eks" {
+  source = "../../../modules/iam-eks"
+
+  env               = "dev"
+  cluster_name      = var.cluster_name
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer_url   = module.eks.oidc_issuer_url
 }
 
 # ── System Node Group ─────────────────────────────────────────────────────────
@@ -67,4 +70,18 @@ module "system_nodes" {
     value  = "system"
     effect = "NO_SCHEDULE"
   }]
+}
+
+# ── EKS Addons ────────────────────────────────────────────────────────────────
+# depends_on module.system_nodes ensures at least one node is Ready before
+# CoreDNS and kube-proxy are installed, preventing CrashLoopBackOff on startup.
+
+module "addons" {
+  source = "../../../modules/eks-addons"
+
+  env              = "dev"
+  cluster_name     = module.eks.cluster_name
+  ebs_csi_role_arn = module.iam_eks.ebs_csi_role_arn
+
+  depends_on = [module.system_nodes]
 }
