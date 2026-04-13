@@ -83,5 +83,14 @@ module "addons" {
   cluster_name     = module.eks.cluster_name
   ebs_csi_role_arn = module.iam_eks.ebs_csi_role_arn
 
+  # CoreDNS and EBS CSI controller are Deployments — they need this toleration
+  # to schedule on the system node group (taint: dedicated=system:NoSchedule)
+  system_node_taints = [{
+    key      = "dedicated"
+    value    = "system"
+    effect   = "NoSchedule"
+    operator = "Equal"
+  }]
+
   depends_on = [module.system_nodes]
 }

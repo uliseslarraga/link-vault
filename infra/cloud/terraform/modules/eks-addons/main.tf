@@ -8,20 +8,22 @@ locals {
     var.tags,
   )
 
-  # Addons that require no IAM role — just cluster + version resolved at plan time
-  basic_addons = toset([
+  # Addons that run as DaemonSets — broad tolerations by default, no config needed
+  daemonset_addons = toset([
     "vpc-cni",
-    "coredns",
     "kube-proxy",
     "eks-pod-identity-agent",
   ])
 }
 
 data "aws_eks_addon_version" "this" {
-  for_each = toset(concat(
-    tolist(local.basic_addons),
-    ["aws-ebs-csi-driver"],
-  ))
+  for_each = toset([
+    "vpc-cni",
+    "coredns",
+    "kube-proxy",
+    "eks-pod-identity-agent",
+    "aws-ebs-csi-driver",
+  ])
 
   addon_name         = each.key
   kubernetes_version = data.aws_eks_cluster.this.version
@@ -32,12 +34,12 @@ data "aws_eks_cluster" "this" {
   name = var.cluster_name
 }
 
-# ── Basic addons ──────────────────────────────────────────────────────────────
-# vpc-cni, coredns, kube-proxy, eks-pod-identity-agent
-# resolve_conflicts_on_update = OVERWRITE lets AWS manage config drift
+# ── DaemonSet addons ──────────────────────────────────────────────────────────
+# vpc-cni, kube-proxy, eks-pod-identity-agent run as DaemonSets and already
+# carry tolerations for all taints — no configuration_values needed.
 
-resource "aws_eks_addon" "basic" {
-  for_each = local.basic_addons
+resource "aws_eks_addon" "daemonset" {
+  for_each = local.daemonset_addons
 
   cluster_name                = var.cluster_name
   addon_name                  = each.key
@@ -47,8 +49,26 @@ resource "aws_eks_addon" "basic" {
   tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-${each.key}" })
 }
 
+# ── CoreDNS ───────────────────────────────────────────────────────────────────
+# Runs as a Deployment — does NOT tolerate custom taints by default.
+# Inject system node tolerations so pods can schedule on tainted nodes.
+
+resource "aws_eks_addon" "coredns" {
+  cluster_name                = var.cluster_name
+  addon_name                  = "coredns"
+  addon_version               = data.aws_eks_addon_version.this["coredns"].version
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  configuration_values = length(var.system_node_taints) > 0 ? jsonencode({
+    tolerations = var.system_node_taints
+  }) : null
+
+  tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-coredns" })
+}
+
 # ── EBS CSI driver ────────────────────────────────────────────────────────────
-# Requires an IRSA role so the driver pods can call ec2:CreateVolume etc.
+# controller: Deployment — needs toleration for system node taint.
+# node:       DaemonSet  — tolerates all taints by default, but explicit is better.
 
 resource "aws_eks_addon" "ebs_csi" {
   cluster_name                = var.cluster_name
@@ -56,6 +76,11 @@ resource "aws_eks_addon" "ebs_csi" {
   addon_version               = data.aws_eks_addon_version.this["aws-ebs-csi-driver"].version
   service_account_role_arn    = var.ebs_csi_role_arn
   resolve_conflicts_on_update = "OVERWRITE"
+
+  configuration_values = length(var.system_node_taints) > 0 ? jsonencode({
+    controller = { tolerations = var.system_node_taints }
+    node       = { tolerations = var.system_node_taints }
+  }) : null
 
   tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-aws-ebs-csi-driver" })
 }
