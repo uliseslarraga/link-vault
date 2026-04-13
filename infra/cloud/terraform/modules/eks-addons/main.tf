@@ -8,9 +8,8 @@ locals {
     var.tags,
   )
 
-  # Addons that run as DaemonSets — broad tolerations by default, no config needed
+  # Remaining DaemonSet addons — depend on vpc-cni being ready first
   daemonset_addons = toset([
-    "vpc-cni",
     "kube-proxy",
     "eks-pod-identity-agent",
   ])
@@ -34,9 +33,20 @@ data "aws_eks_cluster" "this" {
   name = var.cluster_name
 }
 
-# ── DaemonSet addons ──────────────────────────────────────────────────────────
-# vpc-cni, kube-proxy, eks-pod-identity-agent run as DaemonSets and already
-# carry tolerations for all taints — no configuration_values needed.
+# ── 1. vpc-cni — must be first ────────────────────────────────────────────────
+# Provides pod networking. All other addon pods need it running to get IPs.
+
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name                = var.cluster_name
+  addon_name                  = "vpc-cni"
+  addon_version               = data.aws_eks_addon_version.this["vpc-cni"].version
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-vpc-cni" })
+}
+
+# ── 2. DaemonSet addons — depend on vpc-cni ───────────────────────────────────
+# kube-proxy, eks-pod-identity-agent: DaemonSets with broad tolerations.
 
 resource "aws_eks_addon" "daemonset" {
   for_each = local.daemonset_addons
@@ -47,11 +57,12 @@ resource "aws_eks_addon" "daemonset" {
   resolve_conflicts_on_update = "OVERWRITE"
 
   tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-${each.key}" })
+
+  depends_on = [aws_eks_addon.vpc_cni]
 }
 
-# ── CoreDNS ───────────────────────────────────────────────────────────────────
-# Runs as a Deployment — does NOT tolerate custom taints by default.
-# Inject system node tolerations so pods can schedule on tainted nodes.
+# ── 3. CoreDNS — depends on vpc-cni ──────────────────────────────────────────
+# Deployment — inject system node tolerations so pods schedule on tainted nodes.
 
 resource "aws_eks_addon" "coredns" {
   cluster_name                = var.cluster_name
@@ -64,9 +75,11 @@ resource "aws_eks_addon" "coredns" {
   }) : null
 
   tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-coredns" })
+
+  depends_on = [aws_eks_addon.vpc_cni]
 }
 
-# ── EBS CSI driver ────────────────────────────────────────────────────────────
+# ── 4. EBS CSI driver — depends on vpc-cni ───────────────────────────────────
 # controller: Deployment — needs toleration for system node taint.
 # node:       DaemonSet  — tolerates all taints by default, but explicit is better.
 
@@ -83,4 +96,6 @@ resource "aws_eks_addon" "ebs_csi" {
   }) : null
 
   tags = merge(local.common_tags, { Name = "${var.cluster_name}-addon-aws-ebs-csi-driver" })
+
+  depends_on = [aws_eks_addon.vpc_cni]
 }
