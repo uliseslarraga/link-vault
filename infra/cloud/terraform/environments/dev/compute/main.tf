@@ -32,7 +32,7 @@ module "eks" {
   subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
 
   endpoint_private_access = true
-  endpoint_public_access  = false
+  endpoint_public_access  = true
 }
 
 # ── System Node Group ─────────────────────────────────────────────────────────
@@ -50,9 +50,9 @@ module "system_nodes" {
   node_role_arn   = module.iam_eks.node_role_arn
   subnet_ids      = data.terraform_remote_state.network.outputs.private_subnet_ids
 
-  instance_types = ["t3.large"]
+  instance_types = ["m7i-flex.large"]
   capacity_type  = "ON_DEMAND"
-  disk_size_gb   = 50
+  disk_size_gb   = 30
 
   min_size     = 1
   desired_size = 2
