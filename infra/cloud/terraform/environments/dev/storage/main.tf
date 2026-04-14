@@ -1,16 +1,24 @@
-# ── Storage — dev ─────────────────────────────────────────────────────────────
-# Reads network outputs from remote state to place RDS/ElastiCache in data subnets.
+# ── ECR Repositories ──────────────────────────────────────────────────────────
 
-data "terraform_remote_state" "network" {
-  backend = "s3"
-  config = {
-    bucket = "link-vault-tf-backend"
-    key    = "dev/network/terraform.tfstate"
-    region = "us-east-1"
-  }
+module "ecr" {
+  source = "../../../modules/ecr"
+
+  repositories         = ["link-vault/backend", "link-vault/frontend"]
+  image_tag_mutability = "IMMUTABLE"
+  untagged_expiry_days = 14
 }
 
-# TODO: add storage resources (RDS, ElastiCache, S3, etc.)
-# Available references:
-#   data.terraform_remote_state.network.outputs.vpc_id
-#   data.terraform_remote_state.network.outputs.data_subnet_ids
+# ── GitHub Actions OIDC + ECR Push Role ───────────────────────────────────────
+
+module "github_oidc" {
+  source = "../../../modules/github-oidc"
+
+  github_org  = "uliseslarraga"
+  github_repo = "link-vault"
+
+  # Only the main branch can push images — PRs can build but not push
+  github_branches = ["main"]
+
+  role_name           = "link-vault-github-actions"
+  ecr_repository_arns = values(module.ecr.repository_arns)
+}

@@ -32,9 +32,20 @@ variable "flow_log_retention_days" {
 }
 
 variable "eks_enabled" {
-  description = "When true, adds the kubernetes.io/role/elb and kubernetes.io/role/internal-elb tags required by the AWS Load Balancer Controller to discover subnets"
+  description = "When true, adds EKS subnet discovery tags"
   type        = bool
   default     = false
+}
+
+variable "eks_cluster_name" {
+  description = "EKS cluster name. Required when eks_enabled = true. Used for the kubernetes.io/cluster/<name> tag that EKS needs to discover subnets for node ENI placement."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.eks_enabled || var.eks_cluster_name != ""
+    error_message = "eks_cluster_name must be set when eks_enabled is true."
+  }
 }
 
 variable "tags" {

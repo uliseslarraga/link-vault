@@ -4,6 +4,7 @@ module "network" {
   env    = "dev"
   region = var.region
 
-  vpc_cidr    = "10.0.0.0/16"
-  eks_enabled = true
+  vpc_cidr         = "10.0.0.0/16"
+  eks_enabled      = true
+  eks_cluster_name = "link-vault-dev"
 }

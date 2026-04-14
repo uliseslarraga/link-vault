@@ -18,9 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE: ghcr.io/${{ github.repository }}/backend
   PYTHON_VERSION: "3.12"
+  ECR_REPO: link-vault/backend
 
 jobs:
   static-analysis:
@@ -35,6 +34,8 @@ jobs:
       run: |
         pip install ruff
         ruff check apps/backend
+    - name: SAST deep scan (placeholder)
+      run: echo "TODO:/ configure SonarQube / Semgrep / CodeClimate"
 
   test:
     name: Unit Tests & Coverage
@@ -73,27 +74,47 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write # required for OIDC → AWS role assumption
       security-events: write
     steps:
     - uses: actions/checkout@v4
+
     - uses: docker/setup-buildx-action@v3
-    - name: Log in to GHCR
+
+    - name: Configure AWS credentials (OIDC)
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: docker/login-action@v3
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Log in to ECR
+      id: ecr-login
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # Resolve the full image name here so every subsequent step gets a valid reference.
+    # On main:  <account>.dkr.ecr.<region>.amazonaws.com/link-vault/backend
+    # On PRs:   link-vault/backend  (local, never pushed)
+    - name: Set image name
+      id: image
+      run: |
+        if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "name=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
+        else
+          echo "name=${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
+        fi
+
     - uses: docker/metadata-action@v5
       id: meta
       with:
-        images: ${{ env.IMAGE }}
+        images: ${{ steps.image.outputs.name }}
         tags: |
           type=sha,format=long
           type=ref,event=branch
           type=semver,pattern={{version}}
-    - name: Build image
+
+    - name: Build & push image
       uses: docker/build-push-action@v6
       with:
         context: apps/backend
@@ -102,19 +123,21 @@ jobs:
         push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         tags: |
           ${{ steps.meta.outputs.tags }}
-          ${{ env.IMAGE }}:scan-target
+          ${{ steps.image.outputs.name }}:scan-target
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
     - name: Trivy — vulnerability scan
       uses: aquasecurity/trivy-action@0.35.0
       with:
-        image-ref: ${{ env.IMAGE }}:scan-target
+        image-ref: ${{ steps.image.outputs.name }}:scan-target
         format: sarif
         output: trivy.sarif
         severity: CRITICAL,HIGH
         ignore-unfixed: true
         exit-code: 0
+
     - name: Upload Trivy SARIF
       uses: github/codeql-action/upload-sarif@v3
       if: always()
@@ -122,15 +145,12 @@ jobs:
         sarif_file: trivy.sarif
         category: trivy-backend
 
-  # ── Deploy (placeholder) ─────────────────────────────────────────────────────
   update-image:
-    name: Update Image in helm values file
+    name: Update Image in Helm values file
     needs: container
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - uses: actions/checkout@v4
     - name: Update Helm values (placeholder)
-      run: |
-        echo "Image: ${{ env.IMAGE }}:sha-${{ github.sha }}"
-        echo "TODO: push updated Helm values and trigger ArgoCD sync"
+      run: echo "TODO:/ push updated Helm values and trigger ArgoCD sync"
