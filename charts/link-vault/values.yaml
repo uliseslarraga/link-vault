@@ -1,0 +1,63 @@
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Port the container listens on
+containerPort: 80
+
+service:
+  type: ClusterIP
+  port: 80
+
+# configMap.env   → key/value pairs injected as env vars via envFrom
+# configMap.files → file contents mounted as volumes (keys become filenames)
+configMap:
+  env: {}
+  files: {}
+
+# Name of an existing Secret to inject as env vars via envFrom (for sensitive values)
+secretRef: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# Extra volume mounts — used to mount configMap.files into the container
+volumeMounts: []
+
+# Extra volumes — use to reference the configmap by name
+volumes: []
+
+httpRoute:
+  enabled: false
+  gatewayName: ""
+  gatewayNamespace: ""
+  hostnames: []
+  # Rules are optional. When empty, a default catch-all rule pointing to this
+  # chart's own service is generated. Each rule may omit backendRefs to also
+  # default to this chart's own service.
+  rules: []
