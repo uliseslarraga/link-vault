@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "link-vault.fullname" . }}
+  labels:
+    {{- include "link-vault.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "link-vault.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "link-vault.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- if .Values.configMap.env }}
+        checksum/configmap: {{ toYaml .Values.configMap.env | sha256sum }}
+        {{- end }}
+    spec:
+      containers:
+        - name: {{ include "link-vault.fullname" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          {{- if or .Values.configMap.env .Values.secretRef }}
+          envFrom:
+            {{- if .Values.configMap.env }}
+            - configMapRef:
+                name: {{ include "link-vault.fullname" . }}
+            {{- end }}
+            {{- if .Values.secretRef }}
+            - secretRef:
+                name: {{ .Values.secretRef }}
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
