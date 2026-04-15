@@ -48,6 +48,12 @@ variable "eks_cluster_name" {
   }
 }
 
+variable "single_nat_gateway" {
+  description = "When true (default), deploy a single NAT Gateway in the first public subnet. Cost-effective for dev/staging. Set to false for prod to get one NAT Gateway per AZ (requires refactoring route tables to per-AZ)."
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Additional tags to merge onto all resources"
   type        = map(string)

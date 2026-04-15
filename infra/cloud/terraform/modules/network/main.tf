@@ -20,7 +20,7 @@ data "aws_availability_zones" "available" {
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
-  enable_dns_hostnames = true # required for Interface VPC endpoints
+  enable_dns_hostnames = true # required for RDS endpoint resolution and EKS
 
   tags = merge(local.common_tags, { Name = "link-vault-${var.env}-vpc" })
 }
@@ -197,34 +197,58 @@ resource "aws_route_table_association" "data" {
   route_table_id = aws_route_table.data.id
 }
 
-# ── Security Group — VPC Endpoints ───────────────────────────────────────────
+# ── NAT Gateway ───────────────────────────────────────────────────────────────
+# Provides outbound internet access for private and data subnets (EKS nodes,
+# ECR image pulls, AWS API calls, etc.) without exposing them directly.
+#
+# single_nat_gateway = true  → one NAT in public subnet[0] (dev/cost-effective)
+# single_nat_gateway = false → one NAT per AZ (prod HA — also requires
+#                              per-AZ private/data route tables, see README)
 
-resource "aws_security_group" "vpc_endpoints" {
-  name        = "link-vault-${var.env}-sg-vpc-endpoints"
-  description = "Allow HTTPS from VPC to Interface endpoints (SSM)"
-  vpc_id      = aws_vpc.this.id
+resource "aws_eip" "nat" {
+  count  = var.single_nat_gateway ? 1 : var.subnets_per_region
+  domain = "vpc"
 
-  ingress {
-    description = "HTTPS from VPC"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
+  tags = merge(local.common_tags, {
+    Name = "link-vault-${var.env}-eip-nat${var.single_nat_gateway ? "" : "-${local.azs[count.index]}"}"
+  })
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  depends_on = [aws_internet_gateway.this]
+}
 
-  tags = merge(local.common_tags, { Name = "link-vault-${var.env}-sg-vpc-endpoints" })
+resource "aws_nat_gateway" "this" {
+  count = var.single_nat_gateway ? 1 : var.subnets_per_region
+
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  tags = merge(local.common_tags, {
+    Name = "link-vault-${var.env}-nat${var.single_nat_gateway ? "" : "-${local.azs[count.index]}"}"
+  })
+
+  depends_on = [aws_internet_gateway.this]
+}
+
+# Default route via NAT for private and data tiers.
+# Both share the same single route table today, so they reference nat[0].
+# For per-AZ NAT (single_nat_gateway = false), refactor to per-AZ route tables.
+
+resource "aws_route" "private_nat" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.this[0].id
+}
+
+resource "aws_route" "data_nat" {
+  route_table_id         = aws_route_table.data.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.this[0].id
 }
 
 # ── VPC Gateway Endpoint — S3 ─────────────────────────────────────────────────
-# Free endpoint — keeps S3 traffic (ECR layers, app uploads) on the AWS backbone.
-# Associated with all three route tables so every tier can reach S3.
+# Free endpoint — keeps S3 traffic (ECR layers, app uploads) on the AWS backbone
+# without going through the NAT Gateway (which charges per GB).
+# Associated with all three route tables so every tier benefits.
 
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.this.id
@@ -238,41 +262,4 @@ resource "aws_vpc_endpoint" "s3" {
   ]
 
   tags = merge(local.common_tags, { Name = "link-vault-${var.env}-vpce-s3" })
-}
-
-# ── VPC Interface Endpoints ───────────────────────────────────────────────────
-# SSM Session Manager:  ssm, ssmmessages, ec2messages
-# EKS / node bootstrap: ec2, ecr.api, ecr.dkr, sts
-# Controllers:          elasticloadbalancing, autoscaling
-# Observability:        logs
-
-locals {
-  interface_endpoint_services = [
-    "ssm",
-    "ssmmessages",
-    "ec2messages",
-    "ec2",
-    "ecr.api",
-    "ecr.dkr",
-    "sts",
-    "elasticloadbalancing",
-    "autoscaling",
-    "logs",
-  ]
-}
-
-resource "aws_vpc_endpoint" "interface" {
-  for_each = toset(local.interface_endpoint_services)
-
-  vpc_id              = aws_vpc.this.id
-  service_name        = "com.amazonaws.${var.region}.${each.key}"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-
-  subnet_ids         = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.vpc_endpoints.id]
-
-  tags = merge(local.common_tags, {
-    Name = "link-vault-${var.env}-vpce-${each.key}"
-  })
 }
