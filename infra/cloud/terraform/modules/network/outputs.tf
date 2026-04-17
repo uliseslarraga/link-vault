@@ -38,9 +38,14 @@ output "vpc_endpoint_s3_id" {
   value       = aws_vpc_endpoint.s3.id
 }
 
-output "vpc_endpoint_interface_ids" {
-  description = "Map of Interface VPC endpoint IDs keyed by service name"
-  value       = { for k, v in aws_vpc_endpoint.interface : k => v.id }
+output "nat_gateway_ids" {
+  description = "IDs of the NAT Gateway(s)"
+  value       = aws_nat_gateway.this[*].id
+}
+
+output "nat_gateway_public_ips" {
+  description = "Elastic IPs assigned to the NAT Gateway(s) — add these to allowlists in external services"
+  value       = aws_eip.nat[*].public_ip
 }
 
 output "flow_log_id" {
