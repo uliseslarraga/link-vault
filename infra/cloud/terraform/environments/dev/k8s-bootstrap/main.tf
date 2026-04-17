@@ -1,12 +1,19 @@
-# ── Remote state — compute layer ──────────────────────────────────────────────
-# Provides the EKS cluster name used to authenticate both providers and to
-# schedule ArgoCD on the system node group.
+# ── Remote state ──────────────────────────────────────────────────────────────
 
 data "terraform_remote_state" "compute" {
   backend = "s3"
   config = {
     bucket = "link-vault-tf-backend"
     key    = "dev/compute/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+data "terraform_remote_state" "network" {
+  backend = "s3"
+  config = {
+    bucket = "link-vault-tf-backend"
+    key    = "dev/network/terraform.tfstate"
     region = "us-east-1"
   }
 }
