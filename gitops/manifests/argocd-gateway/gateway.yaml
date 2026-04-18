@@ -3,11 +3,13 @@ kind: Gateway
 metadata:
   name: argocd-gateway
   namespace: argocd
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
 spec:
   gatewayClassName: aws-alb
+  infrastructure:
+    parametersRef:
+      group: gateway.k8s.aws
+      kind: LoadBalancerConfiguration
+      name: argocd-lb-config
   listeners:
   - name: http
     port: 80
@@ -15,3 +17,15 @@ spec:
     allowedRoutes:
       namespaces:
         from: Same
+---
+apiVersion: gateway.k8s.aws/v1beta1
+kind: LoadBalancerConfiguration
+metadata:
+  name: argocd-lb-config
+  namespace: argocd
+spec:
+  scheme: internet-facing
+  ipAddressType: ipv4
+  loadBalancerAttributes:
+  - key: deletion_protection.enabled
+    value: "false"
