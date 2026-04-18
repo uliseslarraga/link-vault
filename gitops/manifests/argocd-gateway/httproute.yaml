@@ -7,8 +7,10 @@ spec:
   targetReference:
     name: argocd-server
     kind: Service
-  targetType: ip
-  ipAddressType: ipv4
+  defaultConfiguration:
+    targetType: ip
+    ipAddressType: ipv4
+    protocol: HTTP
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
