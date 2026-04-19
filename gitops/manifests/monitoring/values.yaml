@@ -55,6 +55,15 @@ kubeStateMetrics:
   nodeSelector:
     role: system
 
+kube-state-metrics:
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: system
+    effect: NoSchedule
+  nodeSelector:
+    role: system
+
 prometheusOperator:
   tolerations:
   - key: dedicated
