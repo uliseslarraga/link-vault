@@ -46,23 +46,7 @@ nodeExporter:
     effect: NoSchedule
 
 kubeStateMetrics:
-  enabled: true
-  tolerations:
-  - key: dedicated
-    operator: Equal
-    value: system
-    effect: NoSchedule
-  nodeSelector:
-    role: system
-
-kube-state-metrics:
-  tolerations:
-  - key: dedicated
-    operator: Equal
-    value: system
-    effect: NoSchedule
-  nodeSelector:
-    role: system
+  enabled: false
 
 prometheusOperator:
   tolerations:
