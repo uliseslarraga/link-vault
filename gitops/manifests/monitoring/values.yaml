@@ -63,3 +63,24 @@ prometheusOperator:
     effect: NoSchedule
   nodeSelector:
     role: system
+  admissionWebhooks:
+    patch:
+      tolerations:
+      - key: dedicated
+        operator: Equal
+        value: system
+        effect: NoSchedule
+      nodeSelector:
+        role: system
+    createSecretJob:
+      tolerations:
+      - key: dedicated
+        operator: Equal
+        value: system
+        effect: NoSchedule
+    patchWebhookJob:
+      tolerations:
+      - key: dedicated
+        operator: Equal
+        value: system
+        effect: NoSchedule
