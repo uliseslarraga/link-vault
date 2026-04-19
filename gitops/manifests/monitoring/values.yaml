@@ -1,0 +1,65 @@
+grafana:
+  enabled: true
+  adminPassword: "changeme"
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: system
+    effect: NoSchedule
+  nodeSelector:
+    role: system
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    tolerations:
+    - key: dedicated
+      operator: Equal
+      value: system
+      effect: NoSchedule
+    nodeSelector:
+      role: system
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+alertmanager:
+  alertmanagerSpec:
+    tolerations:
+    - key: dedicated
+      operator: Equal
+      value: system
+      effect: NoSchedule
+    nodeSelector:
+      role: system
+
+nodeExporter:
+  enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: system
+    effect: NoSchedule
+
+kubeStateMetrics:
+  enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: system
+    effect: NoSchedule
+  nodeSelector:
+    role: system
+
+prometheusOperator:
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: system
+    effect: NoSchedule
+  nodeSelector:
+    role: system
