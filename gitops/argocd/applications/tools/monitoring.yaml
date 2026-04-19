@@ -2,7 +2,7 @@ helm:
   valuesObject:
     grafana:
       enabled: true
-      adminPassword: "changeme"
+      adminPassword: "changeme2"
       tolerations:
       - key: dedicated
         operator: Equal
