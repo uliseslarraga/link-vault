@@ -7,13 +7,16 @@ metadata:
   - resources-finalizer.argocd.io
 spec:
   project: default
-  source:
-    repoURL: https://prometheus-community.github.io/helm-charts
+  sources:
+  - repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
     targetRevision: 70.4.2
     helm:
       valueFiles:
       - $values/gitops/manifests/monitoring/values.yaml
+  - repoURL: https://github.com/uliseslarraga/link-vault
+    targetRevision: feat/gitops
+    ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
