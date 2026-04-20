@@ -10,7 +10,7 @@ service:
   port: 8000
 configMap:
   env:
-    S3_BUCKET: link-vault
+    S3_BUCKET: link-vault-dev
     AWS_REGION: us-east-1
     # S3_ENDPOINT_URL: ""  # uncomment and set for LocalStack or custom endpoint
     # Create a Kubernetes Secret named "link-vault-backend-secret" containing:
