@@ -17,6 +17,9 @@ spec:
         {{- if .Values.configMap.env }}
         checksum/configmap: {{ toYaml .Values.configMap.env | sha256sum }}
         {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "link-vault.fullname" . }}
       containers:
