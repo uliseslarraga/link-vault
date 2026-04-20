@@ -44,6 +44,7 @@ data "aws_iam_policy_document" "eso" {
     # Scope to secrets tagged for this project to follow least privilege.
     resources = [
       "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:link-vault/*",
+      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:rds!db-685efd46-54aa-41ea-bbaa-2e625b15dca0-AMpHWT",
     ]
   }
 
