@@ -3,7 +3,7 @@
 fullnameOverride: frontend
 image:
   repository: "289296207513.dkr.ecr.us-east-1.amazonaws.com/link-vault/frontend"
-  tag: "sha-b7cbd1fab543da252c1067e4fe2ec1bc11480af7"
+  tag: "sha-a573a26ffdd7bf9b0c0f36f5e2f6a2f2355c46e1"
 containerPort: 80
 service:
   type: ClusterIP
