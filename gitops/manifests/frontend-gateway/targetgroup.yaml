@@ -1,0 +1,13 @@
+apiVersion: gateway.k8s.aws/v1beta1
+kind: TargetGroupConfiguration
+metadata:
+  name: frontend-tg-config
+  namespace: frontend
+spec:
+  targetReference:
+    name: frontend
+    kind: Service
+  defaultConfiguration:
+    targetType: ip
+    ipAddressType: ipv4
+    protocol: HTTP
