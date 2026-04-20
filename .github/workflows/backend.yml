@@ -174,4 +174,5 @@ jobs:
         git add gitops/environments/dev/backend.yaml
         git diff --staged --quiet || \
         git commit -m "chore(gitops): bump backend image tag to sha-${{ github.sha }}"
+        git pull --rebase origin main
         git push
