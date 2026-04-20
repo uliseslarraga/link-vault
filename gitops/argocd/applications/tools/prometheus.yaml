@@ -54,6 +54,12 @@ spec:
             operator: Equal
             value: system
             effect: NoSchedule
+        prometheus-pushgateway:
+          tolerations:
+          - key: dedicated
+            operator: Equal
+            value: system
+            effect: NoSchedule
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
