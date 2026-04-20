@@ -13,10 +13,10 @@ configMap:
     S3_BUCKET: link-vault
     AWS_REGION: us-east-1
     # S3_ENDPOINT_URL: ""  # uncomment and set for LocalStack or custom endpoint
-# Create a Kubernetes Secret named "link-vault-backend-secret" containing:
-#   DATABASE_URL        postgresql+asyncpg://user:pass@host:5432/linkvault
-#   AWS_ACCESS_KEY_ID   <your-key>
-#   AWS_SECRET_ACCESS_KEY <your-secret>
+    # Create a Kubernetes Secret named "link-vault-backend-secret" containing:
+    #   DATABASE_URL        postgresql+asyncpg://user:pass@host:5432/linkvault
+    #   AWS_ACCESS_KEY_ID   <your-key>
+    #   AWS_SECRET_ACCESS_KEY <your-secret>
 
 secretRef: link-vault-backend-secret
 livenessProbe:
@@ -32,13 +32,4 @@ readinessProbe:
   initialDelaySeconds: 5
   periodSeconds: 10
 httpRoute:
-  enabled: true
-  gatewayName: link-vault-gateway
-  gatewayNamespace: default
-  hostnames:
-    - api.link-vault.example.com
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/
+  enabled: false
