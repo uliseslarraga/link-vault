@@ -19,6 +19,11 @@ configMap:
     #   AWS_SECRET_ACCESS_KEY <your-secret>
 
 secretRef: link-vault-backend-secret
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
 livenessProbe:
   httpGet:
     path: /health
