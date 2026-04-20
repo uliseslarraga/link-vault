@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from db.session import engine
 from models.link import Base
@@ -31,6 +32,8 @@ app.add_middleware(
 )
 
 app.include_router(links.router, prefix="/api/v1/links", tags=["links"])
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 @app.get("/health")

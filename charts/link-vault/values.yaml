@@ -6,6 +6,8 @@ serviceAccount:
   # Extra annotations — e.g. IRSA role ARN if not using Pod Identity
   annotations: {}
 
+podAnnotations: {}
+
 replicaCount: 1
 
 image:
