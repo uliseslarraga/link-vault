@@ -33,7 +33,7 @@ spec:
         alertmanager:
           persistence:
             enabled: true
-            storageClass: gp2
+            storageClassName: gp2
           tolerations:
           - key: dedicated
             operator: Equal
