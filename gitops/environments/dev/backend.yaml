@@ -3,7 +3,7 @@
 fullnameOverride: backend
 image:
   repository: "289296207513.dkr.ecr.us-east-1.amazonaws.com/link-vault/backend"
-  tag: "sha-a573a26ffdd7bf9b0c0f36f5e2f6a2f2355c46e1"
+  tag: "sha-879b5994d7c6ddd4ef7da33377fc96109643f69b"
 containerPort: 8000
 service:
   type: ClusterIP
@@ -17,9 +17,7 @@ configMap:
     #   DATABASE_URL        postgresql+asyncpg://user:pass@host:5432/linkvault
     #   AWS_ACCESS_KEY_ID   <your-key>
     #   AWS_SECRET_ACCESS_KEY <your-secret>
-
 secretRef: link-vault-backend-secret
-
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8000"
