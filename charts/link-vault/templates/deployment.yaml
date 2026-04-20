@@ -18,6 +18,7 @@ spec:
         checksum/configmap: {{ toYaml .Values.configMap.env | sha256sum }}
         {{- end }}
     spec:
+      serviceAccountName: {{ include "link-vault.fullname" . }}
       containers:
         - name: {{ include "link-vault.fullname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

@@ -1,6 +1,11 @@
 nameOverride: ""
 fullnameOverride: ""
 
+serviceAccount:
+  create: true
+  # Extra annotations — e.g. IRSA role ARN if not using Pod Identity
+  annotations: {}
+
 replicaCount: 1
 
 image:
