@@ -5,6 +5,10 @@ metadata:
   name: {{ include "link-vault.fullname" . }}
   labels:
     {{- include "link-vault.labels" . | nindent 4 }}
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   parentRefs:
     - name: {{ required "httpRoute.gatewayName is required when httpRoute.enabled is true" .Values.httpRoute.gatewayName }}

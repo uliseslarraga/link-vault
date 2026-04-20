@@ -56,6 +56,7 @@ httpRoute:
   enabled: false
   gatewayName: ""
   gatewayNamespace: ""
+  annotations: {}
   hostnames: []
   # Rules are optional. When empty, a default catch-all rule pointing to this
   # chart's own service is generated. Each rule may omit backendRefs to also
