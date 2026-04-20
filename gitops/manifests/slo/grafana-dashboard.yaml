@@ -36,7 +36,7 @@ data:
           },
           "targets": [
             {
-              "expr": "job:http_success_ratio:rate5m",
+              "expr": "1 - (sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])))",
               "legendFormat": "Success Rate"
             },
             {
@@ -65,7 +65,7 @@ data:
           },
           "targets": [
             {
-              "expr": "clamp_min(job:http_error_budget_remaining:ratio, 0)",
+              "expr": "clamp_min(1 - ((sum_over_time((rate(http_requests_total{status_code=~\"5..\"}[5m]))[30d:5m]) / sum_over_time((rate(http_requests_total[5m]))[30d:5m])) / (1 - 0.999)), 0)",
               "legendFormat": "Budget Remaining"
             }
           ]
@@ -90,15 +90,15 @@ data:
           },
           "targets": [
             {
-              "expr": "job:http_request_duration_p50:rate5m",
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
               "legendFormat": "P50"
             },
             {
-              "expr": "job:http_request_duration_p95:rate5m",
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
               "legendFormat": "P95"
             },
             {
-              "expr": "job:http_request_duration_p99:rate5m",
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
               "legendFormat": "P99"
             },
             {
