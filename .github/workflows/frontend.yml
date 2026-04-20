@@ -116,9 +116,7 @@ jobs:
         file: infra/docker/Dockerfile.frontend
         load: true
         push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        tags: |
-          ${{ steps.meta.outputs.tags }}
-          ${{ steps.image.outputs.name }}:scan-target
+        tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: VITE_API_URL=/api/v1
         cache-from: type=gha
@@ -127,7 +125,7 @@ jobs:
     - name: Trivy — vulnerability scan
       uses: aquasecurity/trivy-action@0.35.0
       with:
-        image-ref: ${{ steps.image.outputs.name }}:scan-target
+        image-ref: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
         format: sarif
         output: trivy.sarif
         severity: CRITICAL,HIGH
