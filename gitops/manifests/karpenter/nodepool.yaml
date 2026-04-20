@@ -1,0 +1,55 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    metadata:
+      labels:
+        role: app
+
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+
+      requirements:
+      # Prefer Spot, fall back to On-Demand when Spot capacity is unavailable.
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: [ "spot", "on-demand" ]
+
+      # Instance types — mix of families and sizes for better Spot availability.
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values:
+        - c7i-flex.large
+        - t3.micro
+        - t4g.small
+        - t4g.micro
+        - m7i-flex.large
+        - t3.small
+
+      # Only x86_64 — align with the container images built in CI.
+      - key: kubernetes.io/arch
+        operator: In
+        values: [ "amd64" ]
+
+      # Linux only.
+      - key: kubernetes.io/os
+        operator: In
+        values: [ "linux" ]
+      # Nodes provisioned by Karpenter must NOT land on the system node group.
+      # The system node group has its own taint — this nodepool has none,
+      # so regular workloads schedule here without any toleration.
+
+      # Hard cap to prevent runaway scaling in dev.
+  limits:
+    cpu: 20
+    memory: 80Gi
+
+  disruption:
+    # Remove empty or underutilised nodes to save cost.
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 30s
