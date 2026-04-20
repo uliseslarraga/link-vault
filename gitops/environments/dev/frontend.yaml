@@ -61,12 +61,11 @@ volumes:
           path: default.conf
 httpRoute:
   enabled: true
-  gatewayName: link-vault-gateway
-  gatewayNamespace: default
-  hostnames:
-    - link-vault.example.com
+  gatewayName: frontend-gateway
+  gatewayNamespace: frontend
+  annotations:
+    alb.ingress.kubernetes.io/target-type: ip
   rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
+    - backendRefs:
+        - name: frontend
+          port: 80
