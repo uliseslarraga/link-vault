@@ -31,7 +31,8 @@ spec:
           nodeSelector:
             role: system
         alertmanager:
-          persistentVolume:
+          persistence:
+            enabled: true
             storageClass: gp2
           tolerations:
           - key: dedicated
