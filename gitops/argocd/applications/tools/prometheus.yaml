@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.io
+spec:
+  project: default
+  sources:
+  - repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus
+    targetRevision: "*"
+    helm:
+      valuesObject:
+        tolerations:
+        - key: dedicated
+          operator: Equal
+          value: system
+          effect: NoSchedule
+        nodeSelector:
+          role: system
+        server:
+          tolerations:
+          - key: dedicated
+            operator: Equal
+            value: system
+            effect: NoSchedule
+          nodeSelector:
+            role: system
+        alertmanager:
+          tolerations:
+          - key: dedicated
+            operator: Equal
+            value: system
+            effect: NoSchedule
+          nodeSelector:
+            role: system
+        kube-state-metrics:
+          tolerations:
+          - key: dedicated
+            operator: Equal
+            value: system
+            effect: NoSchedule
+          nodeSelector:
+            role: system
+        prometheus-node-exporter:
+          tolerations:
+          - key: dedicated
+            operator: Equal
+            value: system
+            effect: NoSchedule
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
