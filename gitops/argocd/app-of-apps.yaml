@@ -10,7 +10,7 @@ spec:
 
   source:
     repoURL: https://github.com/uliseslarraga/link-vault
-    targetRevision: feat/gitops
+    targetRevision: HEAD
     path: gitops/argocd/applications
     directory:
       recurse: true

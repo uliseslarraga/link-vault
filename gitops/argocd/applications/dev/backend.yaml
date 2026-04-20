@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: karpenter-config
+  name: backend
   namespace: argocd
   finalizers:
   - resources-finalizer.argocd.io
@@ -11,11 +11,14 @@ spec:
   source:
     repoURL: https://github.com/uliseslarraga/link-vault
     targetRevision: HEAD
-    path: gitops/manifests/karpenter
+    path: charts/link-vault
+    helm:
+      valueFiles:
+      - ../../gitops/environments/dev/backend.yaml
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: karpenter
+    namespace: backend
 
   syncPolicy:
     automated:

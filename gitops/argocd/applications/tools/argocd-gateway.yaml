@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/uliseslarraga/link-vault
-    targetRevision: feat/gitops
+    targetRevision: HEAD
     path: gitops/manifests/argocd-gateway
   destination:
     server: https://kubernetes.default.svc
