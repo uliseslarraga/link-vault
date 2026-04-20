@@ -21,6 +21,8 @@ spec:
         nodeSelector:
           role: system
         server:
+          persistentVolume:
+            storageClass: gp2
           tolerations:
           - key: dedicated
             operator: Equal
@@ -29,6 +31,8 @@ spec:
           nodeSelector:
             role: system
         alertmanager:
+          persistentVolume:
+            storageClass: gp2
           tolerations:
           - key: dedicated
             operator: Equal
