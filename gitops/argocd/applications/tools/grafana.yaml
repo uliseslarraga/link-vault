@@ -21,6 +21,10 @@ spec:
         nodeSelector:
           role: system
         adminPassword: "changeme"
+        sidecar:
+          dashboards:
+            enabled: true
+            label: grafana_dashboard
         datasources:
           datasources.yaml:
             apiVersion: 1
