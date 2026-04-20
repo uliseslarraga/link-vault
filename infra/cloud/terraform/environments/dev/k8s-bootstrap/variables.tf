@@ -10,6 +10,12 @@ variable "argocd_chart_version" {
   default     = "7.8.23"
 }
 
+variable "karpenter_chart_version" {
+  description = "Karpenter Helm chart version. See https://github.com/aws/karpenter-provider-aws/releases"
+  type        = string
+  default     = "1.3.3"
+}
+
 variable "lbc_version" {
   description = "AWS Load Balancer Controller version (e.g. v2.8.3). Used to fetch the matching IAM policy from the official GitHub repo."
   type        = string

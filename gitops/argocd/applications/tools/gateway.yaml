@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-of-apps
+  name: gatewayclass
   namespace: argocd
   finalizers:
   - resources-finalizer.argocd.io
@@ -11,10 +11,7 @@ spec:
   source:
     repoURL: https://github.com/uliseslarraga/link-vault
     targetRevision: HEAD
-    path: gitops/argocd/applications
-    directory:
-      recurse: true
-      exclude: "app-of-apps.yaml"
+    path: gitops/manifests/gatewayclass
 
   destination:
     server: https://kubernetes.default.svc

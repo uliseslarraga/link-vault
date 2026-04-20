@@ -146,11 +146,35 @@ jobs:
         category: trivy-backend
 
   update-image:
-    name: Update Image in Helm values file
+    name: Update Image Tag in GitOps values
     needs: container
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
-    - name: Update Helm values (placeholder)
-      run: echo "TODO:/ push updated Helm values and trigger ArgoCD sync"
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install yq
+      env:
+        YQ_VERSION: v4.44.3
+      run: |
+        wget -qO /usr/local/bin/yq \
+          https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
+        chmod +x /usr/local/bin/yq
+
+    - name: Update image tag
+      run: |
+        yq -i '.image.tag = "sha-${{ github.sha }}"' \
+          gitops/environments/dev/backend.yaml
+
+    - name: Commit and push
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add gitops/environments/dev/backend.yaml
+        git diff --staged --quiet || \
+        git commit -m "chore(gitops): bump backend image tag to sha-${{ github.sha }}"
+        git push
