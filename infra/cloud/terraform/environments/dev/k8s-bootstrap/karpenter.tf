@@ -89,6 +89,7 @@ data "aws_iam_policy_document" "karpenter_controller" {
       "arn:aws:ec2:${var.region}:*:network-interface/*",
       "arn:aws:ec2:${var.region}:*:instance/*",
       "arn:aws:ec2:${var.region}:*:volume/*",
+      "arn:aws:ec2:${var.region}:*:fleet/*",
     ]
   }
 

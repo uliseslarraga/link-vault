@@ -47,3 +47,8 @@ output "karpenter_interruption_queue_name" {
   description = "SQS queue name — used as the interruptionQueue Helm value"
   value       = aws_sqs_queue.karpenter_interruption.name
 }
+
+output "eso_role_arn" {
+  description = "IRSA role ARN for External Secrets Operator — annotate the ESO service account with this value"
+  value       = aws_iam_role.eso.arn
+}
