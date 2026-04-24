@@ -77,45 +77,43 @@ jobs:
 
     - uses: docker/setup-buildx-action@v3
 
-    - name: Configure AWS credentials (OIDC)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: ${{ vars.AWS_REGION }}
-
-    - name: Log in to ECR
-      id: ecr-login
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: aws-actions/amazon-ecr-login@v2
-
-    # Resolve the full image name here so every subsequent step gets a valid reference.
-    # On main:  <account>.dkr.ecr.<region>.amazonaws.com/link-vault/frontend
-    # On PRs:   link-vault/frontend  (local, never pushed)
-    - name: Set image name
-      id: image
-      run: |
-        if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          echo "name=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
-        else
-          echo "name=${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
-        fi
+    # -- ECR disabled -- uncomment to re-enable pushing to AWS ECR
+    # - name: Configure AWS credentials (OIDC)
+    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+    #     aws-region: ${{ vars.AWS_REGION }}
+    #
+    # - name: Log in to ECR
+    #   id: ecr-login
+    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    #   uses: aws-actions/amazon-ecr-login@v2
+    #
+    # - name: Set image name
+    #   id: image
+    #   run: |
+    #     if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+    #       echo "name=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
+    #     else
+    #       echo "name=${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
+    #     fi
 
     - uses: docker/metadata-action@v5
       id: meta
       with:
-        images: ${{ steps.image.outputs.name }}
+        images: ${{ env.ECR_REPO }}
         tags: |
           type=sha,format=long
           type=semver,pattern={{version}}
 
-    - name: Build & push image
+    - name: Build image (local only)
       uses: docker/build-push-action@v6
       with:
         context: apps/frontend
         file: infra/docker/Dockerfile.frontend
         load: true
-        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        push: false
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: VITE_API_URL=/api/v1
@@ -125,7 +123,7 @@ jobs:
     - name: Trivy — vulnerability scan
       uses: aquasecurity/trivy-action@0.35.0
       with:
-        image-ref: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+        image-ref: ${{ env.ECR_REPO }}:sha-${{ github.sha }}
         format: sarif
         output: trivy.sarif
         severity: CRITICAL,HIGH
@@ -139,37 +137,69 @@ jobs:
         sarif_file: trivy.sarif
         category: trivy-frontend
 
-  update-image:
-    name: Update Image Tag in GitOps values
-    needs: container
+  # -- GitOps tag bump disabled -- uncomment when ECR push is re-enabled
+  # update-image:
+  #   name: Update Image Tag in GitOps values
+  #   needs: container
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #     with:
+  #       token: ${{ secrets.GITHUB_TOKEN }}
+  #   - name: Install yq
+  #     env:
+  #       YQ_VERSION: v4.44.3
+  #     run: |
+  #       wget -qO /usr/local/bin/yq \
+  #         https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
+  #       chmod +x /usr/local/bin/yq
+  #   - name: Update image tag
+  #     run: |
+  #       yq -i '.image.tag = "sha-${{ github.sha }}"' \
+  #         gitops/environments/dev/frontend.yaml
+  #   - name: Commit and push
+  #     run: |
+  #       git config user.name "github-actions[bot]"
+  #       git config user.email "github-actions[bot]@users.noreply.github.com"
+  #       git add gitops/environments/dev/frontend.yaml
+  #       git diff --staged --quiet || \
+  #       git commit -m "chore(gitops): bump frontend image tag to sha-${{ github.sha }}"
+  #       git pull --rebase origin main
+  #       git push
+
+  publish:
+    name: Publish ZIP Package
+    needs: [ static-analysis, test ]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: apps/frontend
     steps:
     - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: apps/frontend/package-lock.json
 
-    - name: Install yq
-      env:
-        YQ_VERSION: v4.44.3
-      run: |
-        wget -qO /usr/local/bin/yq \
-          https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
-        chmod +x /usr/local/bin/yq
+    - run: npm ci
 
-    - name: Update image tag
-      run: |
-        yq -i '.image.tag = "sha-${{ github.sha }}"' \
-          gitops/environments/dev/frontend.yaml
+    - name: Build
+      run: npm run build
 
-    - name: Commit and push
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add gitops/environments/dev/frontend.yaml
-        git diff --staged --quiet || \
-        git commit -m "chore(gitops): bump frontend image tag to sha-${{ github.sha }}"
-        git pull --rebase origin main
-        git push
+    - name: Package dist as ZIP
+      run: zip -r ../../frontend-sha-${{ github.sha }}.zip dist/
+
+    - name: Publish to GitHub Releases
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: frontend-sha-${{ github.sha }}
+        name: "Frontend sha-${{ github.sha }}"
+        files: frontend-sha-${{ github.sha }}.zip
