@@ -20,6 +20,7 @@ concurrency:
 env:
   NODE_VERSION: "20"
   ECR_REPO: link-vault/frontend
+  VITE_API_URL: /api/v1
 
 jobs:
   static-analysis:
